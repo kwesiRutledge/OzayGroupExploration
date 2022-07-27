@@ -1,18 +1,12 @@
 """
-basictest4.py
+slider_init.py
 Description:
-    Trying to support the basic meshcat visualizer from within a Drake container.
-    Using this to visualize Kinova Gen3 6DoF
+    Initialize the slider object into the world.
 """
 
 import importlib
 import sys
 from urllib.request import urlretrieve
-
-# Start a single meshcat server instance to use for the remainder of this notebook.
-server_args = []
-from meshcat.servers.zmqserver import start_zmq_server_as_subprocess
-proc, zmq_url, web_url = start_zmq_server_as_subprocess(server_args=server_args)
 
 # from manipulation import running_as_notebook
 
@@ -25,7 +19,7 @@ from IPython.display import display, HTML, SVG
 import matplotlib.pyplot as plt
 
 from pydrake.all import (
-    AddMultibodyPlantSceneGraph, ConnectMeshcatVisualizer, DiagramBuilder, 
+    AddMultibodyPlantSceneGraph, Meshcat, MeshcatVisualizerCpp, DiagramBuilder, 
     FindResourceOrThrow, GenerateHtml, InverseDynamicsController, 
     MultibodyPlant, Parser, Simulator, RigidTransform , SpatialVelocity, RotationMatrix,
     AffineSystem, Diagram, LeafSystem, LogVectorOutput, CoulombFriction, HalfSpace )
@@ -80,7 +74,7 @@ builder = DiagramBuilder()
 
 # plant = builder.AddSystem(MultibodyPlant(time_step=time_step)) #Add plant to diagram builder
 plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=1e-3)
-block_as_model = Parser(plant=plant).AddModelFromFile("/root/OzayGroupExploration/drake/manip_tests/slider/slider-block.urdf",'block_with_slots') # Save the model into the plant.
+block_as_model = Parser(plant=plant).AddModelFromFile("/root/kinova-arm/drake/manip_tests/slider/slider-block.urdf",'block_with_slots') # Save the model into the plant.
 
 AddGround(plant)
 
@@ -92,48 +86,11 @@ state_logger = LogVectorOutput(plant.get_state_output_port(block_as_model), buil
 state_logger.set_name("state_logger")
 
 # Connect to Meshcat
-meshcat = ConnectMeshcatVisualizer(builder=builder,
-                                    zmq_url = zmq_url,
-                                    scene_graph=scene_graph,
-                                    output_port=scene_graph.get_query_output_port())
+meshcat0 = Meshcat(port=7001) # Object provides an interface to Meshcat
+mCpp = MeshcatVisualizerCpp(meshcat0)
+mCpp.AddToBuilder(builder,scene_graph,meshcat0)
 
 diagram = builder.Build()
-
-# Create system that outputs the slowly updating value of the pose of the block.
-A = np.zeros((6,6))
-B = np.zeros((6,1))
-f0 = np.array([0.0,0.0,0.0,1.2,0.0,0.0])
-C = np.eye(6)
-D = np.zeros((6,1))
-y0 = np.zeros((6,1))
-x0 = y0
-# target_source2 = builder.AddSystem(
-#     AffineSystem(A,B,f0,C,D,y0)
-#     )
-# target_source2.configure_default_state(x0)
-
-# Connect the state of the block to the output of a slowly changing system.
-# builder.Connect(
-#     target_source2.get_output_port(),
-#     block1.plant.GetInputPort("slider_block"))
-
-# builder.Connect(
-#     plant.get_state_output_port(block),
-#     demux.get_input_port(0))
-
-#Weld robot to table, with translation in x, y and z
-# p_PlaceOnTable0 = [0.15,0.75,-0.20]
-# R_PlaceOnTableO = RotationMatrix.MakeXRotation(-np.pi/2.0)
-# X_TableRobot = RigidTransform(R_PlaceOnTableO,p_PlaceOnTable0)
-# plant.WeldFrames(
-#     plant.GetFrameByName("simpleDesk"),plant.GetFrameByName("base_link"),X_TableRobot)
-
-
-
-# plant.Finalize()
-# # Draw the frames
-# for body_name in ["base_link", "shoulder_link", "bicep_link", "forearm_link", "spherical_wrist_1_link", "spherical_wrist_2_link", "bracelet_with_vision_link", "end_effector_link"]:
-#     AddMultibodyTriad(plant.GetFrameByName(body_name), scene_graph)
 
 # diagram = builder.Build()
 diagram_context = diagram.CreateDefaultContext()
@@ -149,7 +106,6 @@ plant.SetFreeBodySpatialVelocity(
     SpatialVelocity(np.zeros(3),np.array([0.0,0.0,0.0])),
     plant.GetMyContextFromRoot(diagram_context))
 
-meshcat.load()
 diagram.Publish(diagram_context)
 
 
