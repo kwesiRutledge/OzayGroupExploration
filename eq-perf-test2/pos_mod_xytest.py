@@ -28,8 +28,9 @@ from datetime import datetime, timedelta
 
 import keyboard
 
-URI='radio://0/100/2M/E7E7E7E703'
-dt = 0.1
+# Address of the drone
+URI='radio://0/110/2M/E7E7E7E704' # We are currently working with drone 4
+dt = 5.0
 alpha = 0 # alpha = {0, pi/4}
 logging.basicConfig(level=logging.ERROR)
 
@@ -39,9 +40,15 @@ vx_list = list()
 vy_list = list()
 
 
-mat_file_name = "xytest.mat"
+mat_file_name = "data/controllers/turning_controller2_data_29Jul2022-1223.mat"
 cbc = con.matfile_data_to_cbc(mat_file_name)
 x_0_t = np.array([]).reshape((2,0))
+u_0_t = np.array([]).reshape((2,0))
+
+# Extract Time Horizon from controller
+TimeHorizon = cbc.time_horizon()
+
+print("Time Horizon = ", TimeHorizon)
 
 def controller(cbc, x_0_t):
     cbc.x_histtory = x_0_t
@@ -58,12 +65,15 @@ if __name__ =='__main__':
     # Select Mode That System Is In
     hidden_mode = np.random.randint(0,1)
 
-    print(cbc.system)
-    print(cbc.system.L)
+    print(str(hidden_mode) + '.txt')
+
+    # print(cbc.system)
+    # print(cbc.system.L)
 
     hm_dynamics = cbc.system.Dynamics[hidden_mode]
 
     print(hm_dynamics)
+    print(hm_dynamics.W)
 
     # Select the height at which system operates
     desired_height = 0.4
@@ -88,16 +98,68 @@ if __name__ =='__main__':
                     scf.cf.commander.send_stop_setpoint()
                     break
             x0 = np.array([[0],[0]])
+            #print('x0 = ', x0, ' with shape = ', x0.shape)
             x_0_t = np.hstack((x_0_t, x0))
             cbc.x_history = x_0_t
             u = cbc.compute_control()
+            u0 = np.reshape(u, (2,1))
+            u_0_t = np.hstack((u_0_t, u0))
+            #print('u = ', u, ' with shape = ', u.shape)
             t = time.time()
-            x_next = hm_dynamics.f(x0,u,np.zeros((2,1)))
+            x_next = hm_dynamics.f(x0,np.reshape(u,(2,1)),np.zeros((2,1)))
+            print("x_next = ", x_next)
             
+            for log_entry in logger:
+                    if(keyboard.is_pressed('q')):
+                        scf.cf.commander.send_stop_setpoint()
+                        print("Stopped command sent!")
+                        break
+
+                    data = log_entry[1]
+                    x = data['stateEstimate.x']
+                    y = data['stateEstimate.y']
+                    vxr = data['stateEstimate.vx']
+                    vyr = data['stateEstimate.vy']
+                    x_list.append(x)
+                    y_list.append(y)
+                    vx_list.append(vxr)
+                    vy_list.append(vyr)
+                    cf.commander.send_position_setpoint(x_next[0,0], x_next[1,0], desired_height, 0)
+                    if time.time() >= t+dt:
+                        x = data['stateEstimate.x']
+                        y = data['stateEstimate.y']
+                        break
+
             #Initialize some loop variables
-            i = 0
-            while i < 10:
+            i = 1
+            while i < TimeHorizon:
                 
+                
+                x_t = np.array([[x],[y]])
+                x_0_t = np.hstack((x_0_t,x_t))
+                cbc.x_history = x_0_t
+                try:
+                    u = cbc.compute_control()
+                    u_0_t = np.hstack((u_0_t, np.reshape(u, (2,1))))
+                    #print("u = ", u,"with shape = ", u.shape)
+                except IndexError as e:
+                    print('There was an IndexError: ',e)
+                    cf.commander.send_stop_setpoint()
+                    print(f'Stopped at x = {x}')
+                    print(f'Stopped at y = {y}')
+                    break
+                except ValueError:
+                    print('There was a ValueError: ',e)
+                    cf.commander.send_stop_setpoint()
+                    print(f'Stopped at x = {x}')
+                    print(f'Stopped at y = {y}')
+                else:
+                    x_next = hm_dynamics.f(x_t,np.reshape(u,(2,1)),np.zeros((2,1)))
+                    print("x_next = ",x_next)
+                    i += 1
+                    print(f'i is {i}')
+                    t = time.time()
+
                 for log_entry in logger:
                     if(keyboard.is_pressed('q')):
                         scf.cf.commander.send_stop_setpoint()
@@ -113,30 +175,16 @@ if __name__ =='__main__':
                     y_list.append(y)
                     vx_list.append(vxr)
                     vy_list.append(vyr)
-                    cf.commander.send_position_setpoint(x_next[0], x_next[1], desired_height, 0)
+                    cf.commander.send_position_setpoint(x_next[0,0], x_next[1,0], desired_height, 0)
                     if time.time() >= t+dt:
                         x = data['stateEstimate.x']
                         y = data['stateEstimate.y']
                         break
-                x_t = np.array([[x],[y]])
-                x_0_t = np.hstack((x_0_t,x_t))
-                cbc.x_history = x_0_t
-                try:
-                    u = cbc.compute_control()
-                except IndexError or ValueError:
-                    print('wrong')
-                    cf.commander.send_stop_setpoint()
-                    print(f'Stopped at x = {x}')
-                    print(f'Stopped at y = {y}')
-                    break
-                else:
-                    x_next = hm_dynamics.f(x_t,u,np.zeros((2,1)))
-                    i += 1
-                    print(f'i is {i}')
-                    t = time.time()
                 
             
 
-    
-
-np.savetxt('results-mod_pos.txt',(x_list,y_list,vx_list,vy_list))
+    # Save data file for this run
+    now = datetime.now() # current date and time
+    filename = 'data/results-mod_pos-' + now.strftime("%m%d%Y_%H_%M_%S") + '-mode' + str(hidden_mode) + '.txt'
+    np.savetxt(filename,(x_list,y_list,vx_list,vy_list))
+    np.savetxt(filename, (x_0_t.flatten(),u_0_t.flatten()) )
