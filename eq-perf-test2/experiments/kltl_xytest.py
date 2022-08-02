@@ -1,12 +1,13 @@
 """
-pos_mod_xytest(self):
-This function is used to test how well the exploration-exploitation controller from
-Rutledge and Ozay's submission to HSCC works.
+kltl_xytest(self):
+    This function is used to test how well the exploration-exploitation controller from
+    my dissertation submission to the University of Michigan works.
 """
 
 import sys
 sys.path.append('/home/laptopuser/.local/lib/python3.8/site-packages')
 
+sys.path.append('/home/laptopuser/Documents/OzayGroupExploration/eq-perf-test2')
 import classes.consistentbeliefcontroller as con
 from classes.affinedynamics import sample_from_polytope 
 import numpy as np
@@ -41,7 +42,7 @@ vx_list = list()
 vy_list = list()
 
 
-mat_file_name = "data/controllers/turning_controller2_data_29Jul2022-1223.mat"
+mat_file_name = "data/controllers/kltl_turning_controller_data_02Aug2022-1522.mat"
 cbc = con.matfile_data_to_cbc(mat_file_name)
 x_0_t = np.array([]).reshape((2,0))
 u_0_t = np.array([]).reshape((2,0))
