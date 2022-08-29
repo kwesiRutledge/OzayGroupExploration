@@ -253,16 +253,46 @@ Description:
 # Test7a: Adding transition using indices
 
 sys7a = TransitionSystem(
-    ["q0","q1","q3"],  
+    ["q0","q1","q2","q3"],  
     ["o1","o2"], 
     [
         sparse([2,2],[2,3],[1,1]),
         sparse([1,2,2],[2,2,3],[1,1,1]),
-        sparse([1,2],[1,2],[1,1])
+        sparse([1,2],[1,2],[1,1]),
+        sparse([1,2],[1,1],[1,1])
     ],
     ["q0"],
     ["y1","y2","y3"],
-    sparse([1,2,3],[2,3,1],[1,1,1])
+    sparse([1,2,3,4],[2,3,1,2],[1,1,1,1])
 )
 
 draw(PNG("my_graph1.png",16cm,16cm),plot(sys7a))
+
+"""
+Section 8: get_philsopher_system()
+Description:
+    Testing how well the philosopher system function works (for getting easy example transition systems).
+"""
+
+# Test 8a: Attempting to create philosopher in a faulty way
+try
+    ts8a = get_philsopher_system(-1,2)
+    @test false # This should not be reached.
+catch err
+    @test isa(err, DomainError)
+    @test contains(string(err), "The input philosopher index (-1) is less than zero!")
+end
+
+# Test 8b: Attempting to create philosopher in a faulty way (philosopher index is greater than number of philosophers)
+try
+    ts8b = get_philsopher_system(4,4)
+    @test false # This should not be reached.
+catch err
+    @test isa(err, DomainError)
+    @test contains(string(err), "The input philosopher index (4) is greater than or equal to num_phil (4)!")
+end
+
+# Test 8c: Properly create a philosopher
+ts8c = get_philsopher_system(2,5)
+@test length(ts8c.Act) == 4
+@test length(ts8c.S) == 6

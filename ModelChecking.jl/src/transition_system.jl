@@ -47,7 +47,7 @@ Description:
     - n_S States
     - n_Act Actions
 """
-function System(n_S::Integer,n_Act::Integer)
+function TransitionSystem(n_S::Integer,n_Act::Integer)
     # Constants
 
     # Algorithm
@@ -67,12 +67,55 @@ function System(n_S::Integer,n_Act::Integer)
     #Create empty transition FAsMatrices
     tempTransitionsAsMatrices = Vector{SparseMatrixCSC{Int,Int}}([])
     for s_index in range(1,stop=n_S)
-        push!(tempFAsMatrices,sparse([],[],[],n_Act,n_S))
+        push!(tempTransitionsAsMatrices,sparse([],[],[],n_Act,n_S))
     end
 
     # Create empty output Matrix
     
     return TransitionSystem(tempS,tempAct, tempTransitionsAsMatrices, tempS,[],sparse([],[],[]) )
+
+end
+
+"""
+TransitionSystem(n_S::Integer,n_Act::Integer,n_AP::Integer)
+Description:
+    Creates a transition system with:
+    - n_S States
+    - n_Act Actions
+    - n_AP Atomic Propositions
+"""
+function TransitionSystem(n_S::Integer,n_Act::Integer,n_AP::Integer)
+    # Constants
+
+    # Algorithm
+
+    #s
+    tempS::Vector{String} = []
+    for s_index in range(1,stop=n_S)
+        append!(tempS,[string("s",s_index)])
+    end
+
+    # Create n_Act strings for Act
+    tempAct::Vector{String} = []
+    for act_index in range(1,stop=n_Act)
+        append!(tempAct,[string("a_",act_index)])
+    end
+
+    # Create n_AP strings for AP
+    tempAP::Vector{String} = []
+    for ap_index in range(1,stop=n_AP)
+        append!(tempAP,[string("ap_",ap_index)])
+    end
+
+    #Create empty transition FAsMatrices
+    tempTransitionsAsMatrices = Vector{SparseMatrixCSC{Int,Int}}([])
+    for s_index in range(1,stop=n_S)
+        push!(tempTransitionsAsMatrices,sparse([],[],[],n_Act,n_S))
+    end
+
+    # Create empty output Matrix
+    
+    return TransitionSystem(tempS,tempAct, tempTransitionsAsMatrices, tempS,tempAP,sparse([],[],[], n_S,n_AP) )
 
 end
 
@@ -387,6 +430,82 @@ function check_act(act_in::String,ts_in::TransitionSystem)
 end
 
 """
+check_AP(ap_index_in::Integer,ts_in::TransitionSystem)
+Description:
+    Checks to make sure that a possible atomic proposition INDEX is actually in the bounds of The
+    set of propositions AP.
+"""
+function check_AP(ap_index_in::Integer,ts_in::TransitionSystem)
+    # Constants
+    n_AP = length(ts_in.AP)
+
+    # Algorithm
+    if (1 > ap_index_in) || (n_AP < ap_index_in)
+        throw(DomainError("The atomic proposition at index " * string(ap_index_in) * " is not in the atomic proposition set!"))
+    end
+
+    return
+end
+
+"""
+check_AP(ap_in::String,ts_in::TransitionSystem)
+Description:
+    Checks to make sure that a possible atomic proposition name is actually in the 
+    set of all atomic propositions AP.
+"""
+function check_AP(ap_in::String,ts_in::TransitionSystem)
+    # Constants
+
+    # Algorithm
+    if !(ap_in in ts_in.AP)
+        throw(DomainError("The atomic proposition \"" * string(ap_in) * "\" in the set of all atomic propositions!"))
+    end
+
+    return
+end
+
+"""
+add_label!(ts_in::TransitionSystem,label_in::Tuple{Int,Int})
+Description:
+    Adds a label to the transition system ts_in according to the tuple of indices tuple_in.
+        label_in = (s_in,AP_in)
+"""
+function add_label!(ts_in::TransitionSystem,label_in::Tuple{Int,Int})
+    # Constants
+    s_in = label_in[1]
+    AP_in = label_in[2]
+
+    # Checking inputs
+    check_s(s_in,ts_in)
+    check_AP(AP_in,ts_in)
+    
+    # Algorithm
+    ts_in.LAsMatrix[s_in,AP_in] = 1
+    
+end
+
+"""
+add_label!(ts_in::TransitionSystem,label_in::Tuple{String,String})
+Description:
+    Adds a transition to the transition system ts_in according to the tuple of NAMES tuple_in.
+        label_in = (s_in,AP_in)
+"""
+function add_label!(ts_in::TransitionSystem,label_in::Tuple{String,String})
+    # Constants
+    s_in = label_in[1]
+    AP_in = label_in[2]
+
+    # println(label_in)
+    
+    s_index = find_state_index_of(s_in,ts_in)
+    ap_index = find_proposition_index_of(AP_in,ts_in)
+
+    # Algorithm
+    add_label!(ts_in,( s_index , ap_index ))
+    
+end
+
+"""
 get_vending_machine_system()
 Description:
     Returns the beverage vending machine example.
@@ -394,11 +513,11 @@ Description:
 function get_vending_machine_system1()
     # Constants
     state_names = ["pay","select","get_beer","get_soda"]
-    input_names = ["N/A"]
+    action_names = ["N/A"]
     output_names = ["pay","select","getting_drink"]
 
     # Algorithm
-    system_out = System(length(state_names),length(input_names),length(output_names))
+    system_out = TransitionSystem(length(state_names),length(action_names))
     
     # Add state names
     for state_index in range(1,stop=length(state_names))
@@ -406,8 +525,8 @@ function get_vending_machine_system1()
     end
 
     # Add Input Names
-    for input_index in range(1,stop=length(input_names))
-        system_out.U[input_index] = input_names[input_index]
+    for input_index in range(1,stop=length(action_names))
+        system_out.U[input_index] = action_names[input_index]
     end
 
     # Add Output Names
@@ -432,277 +551,106 @@ function get_vending_machine_system1()
 end
 
 """
-get_figure2_system(num_b::Integer)
+get_philsopher_system(phil_i::Int,num_phil::Int)
 Description:
-    Returns the discrete state system example from Figure 2.
+    Returns the transition system of the phil_i-th philosopher (starting from 0)
+    from the dining philosophers example. There are num_phil philosophers in total.
 """
-function get_figure2_system(num_b::Integer)
-    # Constants
-    input_names = ["N/A"]
-    output_names = ["A","B"]
-
-    num_a = 2
-
-    # Input Processing
-    if num_b < 1
-        throw(DomainError("The number of 'b' states must be a positive integer, not " * string(num_b) * "!"))
+function get_philsopher_system(phil_i::Int,num_phil::Int)
+    # Input processing
+    if phil_i < 0
+        throw(DomainError("The input philosopher index (" * string(phil_i) * ") is less than zero! Not allowed!"))
     end
 
-    # Create System
-
-    system_out = System(num_a+num_b,length(input_names),length(output_names))
+    if phil_i >= num_phil
+        throw(DomainError("The input philosopher index (" * string(phil_i) * ") is greater than or equal to num_phil (" * string(num_phil)  *")! phil_i must be in [0,num_phil)!"))
+    end
     
+    # Constants
+    state_names = [
+        "think",
+        "wait for left stick",
+        "wait for right stick",
+        "eat",
+        "return the left stick",
+        "return the right stick"
+    ]
+
+    if phil_i == 0
+        action_names = [
+            "request_{"*string(num_phil-1)*","*string(phil_i)*"}",
+            "request_{"*string(phil_i)*","*string(phil_i)*"}" ,
+            "release_{"*string(num_phil-1)*","*string(phil_i)*"}",
+            "release_{"*string(phil_i)*","*string(phil_i)*"}" 
+        ]
+    else
+        action_names = [
+            "request_{"*string(phil_i-1)*","*string(phil_i)*"}",
+            "request_{"*string(phil_i)*","*string(phil_i)*"}" ,
+            "release_{"*string(phil_i-1)*","*string(phil_i)*"}",
+            "release_{"*string(phil_i)*","*string(phil_i)*"}" 
+        ]
+    end
+
+    AP = ["has 0 chopsticks","has 1 chopstick","has 2 chopsticks"]
+
+    # Algorithm
+    ts_out = TransitionSystem(length(state_names),length(action_names),length(AP))
+
     # Add state names
-    system_out.X[1] = "a1"
-    system_out.X[2] = "a2"
-    for state_index in range(1,stop=num_b)
-        system_out.X[state_index+2] = "b" * string(state_index)
+    for state_index in range(1,stop=length(state_names))
+        ts_out.S[state_index] = state_names[state_index]
     end
 
     # Add Input Names
-    for input_index in range(1,stop=length(input_names))
-        system_out.U[input_index] = input_names[input_index]
+    for input_index in range(1,stop=length(action_names))
+        ts_out.Act[input_index] = action_names[input_index]
     end
 
-    # Add Output Names
-    for output_index in range(1,stop=length(output_names))
-        system_out.Y[output_index] = output_names[output_index]
+    # Add Action Names
+    for ap_index in range(1,stop=length(AP))
+        ts_out.AP[ap_index] = AP[ap_index]
     end
-
-    # Add Initial States
-    push!(system_out.X0,"a1","a2")
 
     # Create transitions
-    add_transition!(system_out,("a1","N/A","b1"))
-    for b_index in range(2,stop=num_b)
-        add_transition!(system_out,( "b" * string(b_index-1), "N/A" , "b" * string(b_index)  ))
-        add_transition!(system_out,( "b" * string(b_index)  , "N/A" , "b" * string(b_index-1)  ))
-        add_transition!(system_out,( "b" * string(b_index)  , "N/A" , "a2"  ))
-    end
+    add_transition!(ts_out,("think",action_names[1],"wait for left stick"))
+    add_transition!(ts_out,("think",action_names[2],"wait for right stick"))
+    add_transition!(ts_out,("wait for left stick",action_names[2],"eat"))
+    add_transition!(ts_out,("wait for right stick",action_names[1],"eat"))
+    add_transition!(ts_out,("eat",action_names[3],"return the left stick"))
+    add_transition!(ts_out,("eat",action_names[4],"return the right stick"))
+    add_transition!(ts_out,("return the left stick",action_names[4],"think"))
+    add_transition!(ts_out,("return the right stick",action_names[3],"think"))
 
-    add_transition!(system_out,("b1","N/A","a2"))
-    add_transition!(system_out,("a2","N/A","a2"))
-
-    # Create Outputs
-    for x_index in range(1,stop=length(system_out.X))
-        x = system_out.X[x_index]
-
-        if (x == "a1") || (x == "a2")
-            # Label with an A
-            system_out.HAsMatrix[x_index,1] = 1
-        else
-            # Label with a B
-            system_out.HAsMatrix[x_index,2] = 1
+    # Create Labels
+    for state_index in range(1,stop=length(state_names))
+        s_i = ts_out.S[state_index]
+        # Depending on the value of the state's name, we will assign a label
+        if contains(s_i,"think") # Thinking philosopher has 0 chopsticks
+            add_label!(ts_out,(s_i,AP[1]))
         end
 
-    end
+        if contains(s_i,"wait") || contains(s_i,"return") # Waiting philosopher or Returning philosopher has 1 chopstick
+            add_label!(ts_out,(s_i,AP[2]))
+        end
 
-    return system_out
-end
-
-"""
-get_figure3_system(num_patterns::Integer)
-Description:
-    Returns the discrete state system example from Figure 3 of the paper.
-"""
-function get_figure3_system(num_patterns::Integer)
-    # Constants
-    input_names = ["N/A"]
-    output_names = ["A","B","C","D","E","F","G"]
-
-    # Input Processing
-    if num_patterns < 1
-        throw(DomainError("The number of 'pattern repititions' states must be a positive integer, not " * string(num_patterns) * "!"))
-    end
-
-    # Create System
-    n_a = 1
-    n_b = 6 * num_patterns
-    n_c = 6 * num_patterns
-    n_d = ( 1 + 2 + 2 ) * num_patterns
-    n_e = ( 1 + 2 + 2 ) * num_patterns
-    n_f = 6 * num_patterns
-    n_g = 6 * num_patterns
-
-    n_list = [ n_a , n_b , n_c , n_d , n_e , n_f , n_g ]
-
-    n_X = sum(n_list)
-
-    system_out = System(n_X,length(input_names),length(output_names))
-    
-    # Add state names
-    system_out.X[1] = "a1"
-    temp_prefixes = ["a","b","c"]
-    for prefix_index in range(1,stop=length(temp_prefixes))
-        for state_index in range(1,stop=n_list[prefix_index])
-            system_out.X[state_index+sum(n_list[1:prefix_index-1])] = temp_prefixes[prefix_index] * string(state_index)
+        if s_i == "eat" # Eating philosopher has 2 chopsticks
+            add_label!(ts_out,(s_i,AP[3]))
         end
     end
 
-    # insert d names
-    for state_index in range(1,stop=n_d)
-        if mod(state_index,5) == 1
-            system_out.X[state_index+sum(n_list[1:3])] = "d" * string(state_index + div(state_index,5,RoundDown))
-        elseif (mod(state_index,5) == 2)
-            system_out.X[state_index+sum(n_list[1:3])] = "d" * string(state_index+1 + div(state_index,5,RoundDown)) * "^l"
-        elseif mod(state_index,5) == 3
-            system_out.X[state_index+sum(n_list[1:3])] = "d" * string(state_index + div(state_index,5,RoundDown)) * "^r"
-        elseif mod(state_index,5) == 4
-            system_out.X[state_index+sum(n_list[1:3])] = "d" * string(state_index+1 + div(state_index,5,RoundDown)) * "^l"
-        elseif mod(state_index,5) == 0
-            system_out.X[state_index+sum(n_list[1:3])] = "d" * string(state_index + div(state_index,5,RoundDown)-1) * "^r"
-        end
-    end
-
-    # insert e names
-    for state_index in range(1,stop=n_e)
-        if mod(state_index,5) == 1
-            system_out.X[state_index+sum(n_list[1:4])] = "e" * string(state_index+1 + div(state_index,5,RoundDown) ) * "^l"
-        elseif (mod(state_index,5) == 2)
-            system_out.X[state_index+sum(n_list[1:4])] = "e" * string(state_index + div(state_index,5,RoundDown) ) * "^r"
-        elseif mod(state_index,5) == 3
-            system_out.X[state_index+sum(n_list[1:4])] = "e" * string(state_index+1 + div(state_index,5,RoundDown) )
-        elseif mod(state_index,5) == 4
-            system_out.X[state_index+sum(n_list[1:4])] = "e" * string(state_index+2 + div(state_index,5,RoundDown) ) * "^l"
-        elseif mod(state_index,5) == 0
-            system_out.X[state_index+sum(n_list[1:4])] = "e" * string(state_index+1 + div(state_index,5,RoundDown)-1 ) * "^r"
-        end
-    end
-
-    # insert f and g names
-    temp_prefixes2 = ["f","g"]
-    for prefix_index in range(1,stop=length(temp_prefixes2))
-        for state_index in range(1,stop=n_list[5+prefix_index])
-            system_out.X[state_index+sum(n_list[1:5+prefix_index-1])] = temp_prefixes2[prefix_index] * string(state_index)
-        end
-    end
-
-    # for state_index in range(1,stop=length(system_out.X))
-    #     println(system_out.X[state_index])
-    # end
-
-    # Add Input Names
-    for input_index in range(1,stop=length(input_names))
-        system_out.U[input_index] = input_names[input_index]
-    end
-
-    # Add Output Names
-    for output_index in range(1,stop=length(output_names))
-        system_out.Y[output_index] = output_names[output_index]
-    end
-
-    # Add Initial States
-    push!(system_out.X0,"a1")
-
-    # Create transitions
-    add_transition!(system_out,("a1","N/A","b1"))
-    # Add b transitions
-    for b_index in range(1,stop=n_b-1)
-        add_transition!(system_out,( "b" * string(b_index+1), "N/A" , "b" * string(b_index)  ))
-        add_transition!(system_out,( "b" * string(b_index)  , "N/A" , "b" * string(b_index+1)  ))
-        add_transition!(system_out,( "b" * string(b_index)  , "N/A" , "c" * string(b_index)  ))
-    end
-    # Add c transitions
-    for c_index in range(1,stop=n_c)
-        if mod(c_index,6) == 1
-            # Send to the a state marked d * string(c_index)
-            add_transition!(system_out,( "c" * string(c_index)  , "N/A" , "d" * string(c_index)  ))
-        elseif mod(c_index,6) == 2
-            # Send to the left and right e states
-            add_transition!(system_out,( "c" * string(c_index)  , "N/A" , "e" * string(c_index) * "^l" ))
-            add_transition!(system_out,( "c" * string(c_index)  , "N/A" , "e" * string(c_index) * "^r" ))
-        elseif mod(c_index,6) == 3
-            # Send to the left and right d states
-            add_transition!(system_out,( "c" * string(c_index)  , "N/A" , "d" * string(c_index) * "^l" ))
-            add_transition!(system_out,( "c" * string(c_index)  , "N/A" , "d" * string(c_index) * "^r" ))
-        elseif mod(c_index,6) == 4
-            # Send to the a state marked e * string(c_index)
-            add_transition!(system_out,( "c" * string(c_index)  , "N/A" , "e" * string(c_index)  ))
-        elseif mod(c_index,6) == 5
-            # Send to the left and right d states
-            add_transition!(system_out,( "c" * string(c_index)  , "N/A" , "d" * string(c_index) * "^l" ))
-            add_transition!(system_out,( "c" * string(c_index)  , "N/A" , "d" * string(c_index) * "^r" ))
-        elseif mod(c_index,6) == 0
-            # Send to the left and right e states
-            add_transition!(system_out,( "c" * string(c_index)  , "N/A" , "e" * string(c_index) * "^l" ))
-            add_transition!(system_out,( "c" * string(c_index)  , "N/A" , "e" * string(c_index) * "^r" ))
-        end
-    end
-
-    # add d transitions
-    for d_index in range(1,stop=n_d)
-        if mod(d_index,5) == 1
-            # Send to both f and g states with d_index
-            add_transition!(system_out,( "d" * string(d_index + div(d_index,5,RoundDown) )  , "N/A" , "f" * string(d_index + div(d_index,5,RoundDown))  ))
-            add_transition!(system_out,( "d" * string(d_index + div(d_index,5,RoundDown) )  , "N/A" , "g" * string(d_index + div(d_index,5,RoundDown))  ))
-        elseif mod(d_index,5) == 2
-            # This is the left state. Send to the f state
-            add_transition!(system_out,( "d" * string(d_index+1 + div(d_index,5,RoundDown) ) * "^l"  , "N/A" , "f" * string(d_index+1 + div(d_index,5,RoundDown) ) ))
-        elseif mod(d_index,5) == 3
-            # This is the right state. Send to the g state with d_index
-            add_transition!(system_out,( "d" * string(d_index + div(d_index,5,RoundDown)) * "^r"  , "N/A" , "g" * string(d_index + div(d_index,5,RoundDown)) ))
-        elseif mod(d_index,5) == 4
-            # This is the left state. Send to the f state
-            add_transition!(system_out,( "d" * string(d_index+1 + div(d_index,5,RoundDown) ) * "^l"  , "N/A" , "f" * string(d_index+1 + div(d_index,5,RoundDown) )) )
-        elseif mod(d_index,5) == 0
-            # This is the right state. Send to the g state with d_index
-            add_transition!(system_out,( "d" * string(d_index + div(d_index,5,RoundDown) - 1 ) * "^r"  , "N/A" , "g" * string(d_index + div(d_index,5,RoundDown) -1 ) ))
-        end
-    end
-
-    # add e transitions
-    for e_index in range(1,stop=n_e)
-        if mod(e_index,5) == 1
-            # This is the left state. Route to f
-            add_transition!(system_out,( "e" * string(e_index+1 + div(e_index,5,RoundDown) ) * "^l"  , "N/A" , "f" * string(e_index+1 + div(e_index,5,RoundDown) ) ))
-        elseif mod(e_index,5) == 2
-            # This is the right state. Send to the g state with e_index
-            add_transition!(system_out,( "e" * string(e_index + div(e_index,5,RoundDown) ) * "^r"  , "N/A" , "g" * string(e_index + div(e_index,5,RoundDown) ) ))
-        elseif mod(e_index,5) == 3
-            # Send to both f and g states with e_index
-            add_transition!(system_out,( "e" * string(e_index+1 + div(e_index,5,RoundDown) )  , "N/A" , "f" * string(e_index+1 + div(e_index,5,RoundDown) )  ))
-            add_transition!(system_out,( "e" * string(e_index+1 + div(e_index,5,RoundDown) )  , "N/A" , "g" * string(e_index+1 + div(e_index,5,RoundDown) )  ))
-        elseif mod(e_index,5) == 4
-            # This is the left state. Send to the f state
-            add_transition!(system_out,( "e" * string(e_index+2 + div(e_index,5,RoundDown)) * "^l"  , "N/A" , "f" * string(e_index+2 + div(e_index,5,RoundDown) ) ))
-        elseif mod(e_index,5) == 0
-            # This is the right state. Send to the g state with e_index
-            add_transition!(system_out,( "e" * string(e_index+1 + div(e_index,5,RoundDown) - 1) * "^r"  , "N/A" , "g" * string(e_index+1 + div(e_index,5,RoundDown) - 1 ) ))
-        end
-
-    end
-
-    # add f and g transitions
-    for state_index in range(1,stop=n_f)
-        add_transition!(system_out,( "f" * string(state_index) , "N/A" , "f" * string(state_index) ))
-        add_transition!(system_out,( "g" * string(state_index) , "N/A" , "g" * string(state_index) ))
-    end
-
-    # add_transition!(system_out,("b1","N/A","a2"))
-    # add_transition!(system_out,("a2","N/A","a2"))
-
-    # Create Outputs
-    temp_prefixes3 = ["a","b","c","d","e","f","g"]
-    for x_index in range(1,stop=length(system_out.X))
-        x = system_out.X[x_index]
-
-        # Search for matches in temp_prefixes3
-        for prefix_index in range(1,stop=length(temp_prefixes3))
-            if contains( x , temp_prefixes3[prefix_index] )
-                system_out.HAsMatrix[x_index,prefix_index] = 1
-            end
-
-        end
-
-    end
-
-    return system_out
+    return ts_out
 end
 
 """
 to_graph(ts_in::TransitionSystem)
 Description:
     Converts the given transition system to a graph object from Graphs library.
+Usage:
+    ts_as_graph = to_graph(ts_in)
+    state_graph1 = to_graph(ts1)
+Notes:
+    This can also be thought of as converting the transition system to a state graph.
 """
 function to_graph(ts_in::TransitionSystem)
     # Constants
