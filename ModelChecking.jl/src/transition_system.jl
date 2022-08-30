@@ -362,6 +362,47 @@ function add_transition!(ts_in::TransitionSystem,transition_in::Tuple{String,Str
 end
 
 """
+L(s::String, ts_in::TransitionSystem)
+Description:
+    Attempts to find the label of the state s (if it is in the set of states).
+"""
+function L(s_index::Integer, ts_in::TransitionSystem)
+    # Constants
+    check_s(s_index,ts_in)
+
+    # Algorithm
+
+    # Convert temp_post_as_indices to a Vector of strings
+    tempI, tempJ, tempV = findnz(ts_in.LAsMatrix)
+    matching_indices = findall( tempI .== s_index )
+
+    return tempJ[ matching_indices ]
+
+end
+
+"""
+L(s::String, ts_in::TransitionSystem)
+Description:
+    Attempts to find the label of the state s (if it is in the set of states).
+"""
+function L(s::String, ts_in::TransitionSystem)
+    # Constants
+    s_index = find_state_index_of(s,ts_in)
+
+    # Algorithm
+    ap_indices = L(s_index,ts_in)
+
+    # Collect AP's names
+    temp_AP_vec = Vector{String}([])
+    for temp_ap_index in ap_indices
+        temp_AP_vec = push!(temp_AP_vec,ts_in.AP[temp_ap_index])
+    end
+
+    return temp_AP_vec
+
+end
+
+"""
 check_s(s_in::Integer,ts_in::TransitionSystem)
 Description:
     Checks to make sure that a possible state index is actually in the bounds of the set of states S.
@@ -458,7 +499,7 @@ function check_AP(ap_in::String,ts_in::TransitionSystem)
 
     # Algorithm
     if !(ap_in in ts_in.AP)
-        throw(DomainError("The atomic proposition \"" * string(ap_in) * "\" in the set of all atomic propositions!"))
+        throw(DomainError("The atomic proposition \"" * string(ap_in) * "\" is not in the set of all atomic propositions!"))
     end
 
     return
@@ -510,28 +551,28 @@ get_vending_machine_system()
 Description:
     Returns the beverage vending machine example.
 """
-function get_vending_machine_system1()
+function get_vending_machine_system()
     # Constants
     state_names = ["pay","select","get_beer","get_soda"]
     action_names = ["N/A"]
-    output_names = ["pay","select","getting_drink"]
+    AP_names = ["pay","select","getting_drink"]
 
     # Algorithm
-    system_out = TransitionSystem(length(state_names),length(action_names))
+    system_out = TransitionSystem(length(state_names),length(action_names),length(AP_names))
     
     # Add state names
     for state_index in range(1,stop=length(state_names))
-        system_out.X[state_index] = state_names[state_index]
+        system_out.S[state_index] = state_names[state_index]
     end
 
     # Add Input Names
     for input_index in range(1,stop=length(action_names))
-        system_out.U[input_index] = action_names[input_index]
+        system_out.Act[input_index] = action_names[input_index]
     end
 
     # Add Output Names
-    for output_index in range(1,stop=length(output_names))
-        system_out.Y[output_index] = output_names[output_index]
+    for output_index in range(1,stop=length(AP_names))
+        system_out.AP[output_index] = AP_names[output_index]
     end
 
     # Create transitions
@@ -542,10 +583,10 @@ function get_vending_machine_system1()
     add_transition!(system_out,("get_soda","N/A","pay"))
 
     # Create Outputs
-    system_out.HAsMatrix[1,1] = 1
-    system_out.HAsMatrix[2,2] = 1
-    system_out.HAsMatrix[3,3] = 1
-    system_out.HAsMatrix[4,3] = 1
+    add_label!(system_out,("pay","pay"))
+    add_label!(system_out,("select","select"))
+    add_label!(system_out,("get_beer","getting_drink"))
+    add_label!(system_out,("get_soda","getting_drink"))
 
     return system_out
 end

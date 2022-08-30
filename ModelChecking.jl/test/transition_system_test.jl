@@ -274,25 +274,87 @@ Description:
     Testing how well the philosopher system function works (for getting easy example transition systems).
 """
 
-# Test 8a: Attempting to create philosopher in a faulty way
-try
-    ts8a = get_philsopher_system(-1,2)
-    @test false # This should not be reached.
-catch err
-    @test isa(err, DomainError)
-    @test contains(string(err), "The input philosopher index (-1) is less than zero!")
+@testset "get_philsopher_system() Tests" begin
+    # Test 8a: Attempting to create philosopher in a faulty way
+    try
+        ts8a = get_philsopher_system(-1,2)
+        @test false # This should not be reached.
+    catch err
+        @test isa(err, DomainError)
+        @test contains(string(err), "The input philosopher index (-1) is less than zero!")
+    end
+
+    # Test 8b: Attempting to create philosopher in a faulty way (philosopher index is greater than number of philosophers)
+    try
+        ts8b = get_philsopher_system(4,4)
+        @test false # This should not be reached.
+    catch err
+        @test isa(err, DomainError)
+        @test contains(string(err), "The input philosopher index (4) is greater than or equal to num_phil (4)!")
+    end
+
+    # Test 8c: Properly create a philosopher
+    ts8c = get_philsopher_system(2,5)
+    @test length(ts8c.Act) == 4
+    @test length(ts8c.S) == 6
 end
 
-# Test 8b: Attempting to create philosopher in a faulty way (philosopher index is greater than number of philosophers)
-try
-    ts8b = get_philsopher_system(4,4)
-    @test false # This should not be reached.
-catch err
-    @test isa(err, DomainError)
-    @test contains(string(err), "The input philosopher index (4) is greater than or equal to num_phil (4)!")
+"""
+Section 9: check_AP()
+Description:
+    Testing how the check_AP() function works for a given transition system.
+"""
+
+@testset "check_AP() tests" begin
+    ts9a = get_philsopher_system(2,5)
+
+    # Test the check_AP for a proposition from AP
+    ap1 = ts9a.AP[1]
+    try
+        check_AP(ap1,ts9a)
+        @test true
+    catch err
+        @test false # No error should be thrown
+    end
+
+    # Test check_AP for a proposition NOT in AP
+    ap2 = "bad_AP"
+    try
+        check_AP(ap2,ts9a)
+        @test false # Should not be reached
+    catch err
+        # println(err)
+        # println(err.val)
+        # println(string("The atomic proposition \"",ap2,"\" is not in the set of all atomic propositions!"))
+        @test contains(err.val,string("The atomic proposition \"",ap2,"\" is not in the set of all atomic propositions!"))
+    end
 end
 
-# Test 8c: Properly create a philosopher
-ts8c = get_philsopher_system(2,5)
-@test length(ts8c.Act) == 4
-@test length(ts8c.S) == 6
+"""
+Section 10: get_vending_machine_system()
+Description:
+    Testing how well the vending machine transition system function works (for getting easy example transition systems).
+"""
+
+@testset "10: get_vending_machine_system() Tests" begin
+
+    ts10a = get_vending_machine_system()
+
+    # Test 10a: Verify that there are four states
+    @test length(ts10a.S) == 4
+
+    # Test 10b: Verify that there is one action
+    @test length(ts10a.Act) == 1
+
+    # Test 10c: Verify that there are three APs
+    @test length(ts10a.AP) == 3
+
+    # Test 10d: Verify that the label of S[3] is "getting drink"
+    @test ts10a.LAsMatrix[3,3] == 1
+
+    # Test 10e: Verify that the label of S[3] is "getting drink"
+    @test 3 in L(3,ts10a)
+
+    # Test 10f: Verify that the label of S[3] is "getting drink"
+    @test "getting_drink"  in L("get_beer",ts10a)
+end
