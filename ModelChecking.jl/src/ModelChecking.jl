@@ -4,3 +4,4 @@
 #   this implementation of the methods of Baier and Katoen.
 
 include("transition_system.jl")
+include("path.jl")
